@@ -1,3 +1,6 @@
+import LogToFile from "./logger.js";
+import {getNZDateString} from "./date.js";
+
 export async function getCompetitions() {
     const competitionsRequest = await fetch('https://www.nrf.org.nz/api/1.0/competition/cometwidget/competitionsfromids', {
         method: "POST",
@@ -65,8 +68,8 @@ export async function getNextFixtureForTeam(compId, orgId, season, timeFrame, te
         body: JSON.stringify({
             competitionId: compId,
             orgIds: orgId,
-            from: new Date().toISOString(),
-            to: new Date(new Date().getTime() + timeFrame).toISOString(),
+            from: getNZDateString(),
+            to: getNZDateString(timeFrame),
             sportId: "1",
             seasonId: season,
         }),
@@ -76,14 +79,27 @@ export async function getNextFixtureForTeam(compId, orgId, season, timeFrame, te
         cache: "force-cache",
     })
 
+    LogToFile(JSON.stringify({
+        competitionId: compId,
+        orgIds: orgId,
+        from: getNZDateString(),
+        to: getNZDateString(timeFrame),
+        sportId: "1",
+        seasonId: season,
+    }), "request")
+
     if (!fixturesRequest.ok) {
         return Response.json({message: 'Error fetching data', error: fixturesRequest.statusText}, {status: 500})
     }
 
     const allFixtures = await fixturesRequest.json()
+
+
     const teamFixtures = allFixtures.fixtures.filter((fixture) => {
         return fixture.HomeTeamNameAbbr === teamName || fixture.AwayTeamNameAbbr === teamName
     })
+
+    LogToFile(`Fetched team fixtures: ${JSON.stringify({teamFixtures})}`)
 
     return teamFixtures[0] || null
 }

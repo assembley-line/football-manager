@@ -3,6 +3,8 @@ import {sendLocationToChatById, sendMessageToChatById} from "./whatsapp.js";
 
 import fs from "fs";
 import path from "path";
+import LogToFile from "./logger.js";
+import {getNZDate} from "./date.js";
 
 export default async function startScheduler(client, chatId, teamName, orgId, compId, season) {
     const timeFrame = 60 * 60 * 1000; // 1 hour in milliseconds
@@ -39,17 +41,22 @@ const filter = (prevObj, newObj) => {
 };
 
 async function updateFixtureData(client, chatId, teamName, orgId, compId, season) {
-    console.log("[INFO] Fetching fixtures for team, look ahead of 2 weeks...")
+    if (7 <= getNZDate().getHours() <= 19) {
+        LogToFile(`Prevented update during the night`)
+        return
+    }
+
+    LogToFile(`Looking for fixtures, 2 weeks ahead...`)
     await getNextFixtureForTeam(compId, orgId, season, 1209600000, teamName) // Looks ahead 2 weeks
         .then((nextFixture) => {
             if (nextFixture) {
                 const {HomeTeamNameAbbr, AwayTeamNameAbbr, VenueName, Address, Longitude, Latitude, Status, Id} = nextFixture;
 
-                console.log("[INFO] Got next fixture, of ID: ", nextFixture.Id)
+                LogToFile(`Retrieved fixture data: ${nextFixture.Id}`)
 
                 const fixtureCache = readOrCreateJSON(path.join(process.cwd(), "bot_cache", "fixture_cache.json"), {});
 
-                console.log("[INFO] Loaded fixture cache of ID: ", fixtureCache.Id)
+                LogToFile(`Loaded fixture cache of ID: ${fixtureCache.Id}`)
 
                 const date = new Date(nextFixture.Date);
                 const formattedDate = date.toLocaleString("en-NZ", {
@@ -73,7 +80,7 @@ async function updateFixtureData(client, chatId, teamName, orgId, compId, season
                     void sendMessageToChatById(client, chatId, message).then(() => {
                         void sendLocationToChatById(client, chatId, parseFloat(Latitude), parseFloat(Longitude), Address, VenueName)
                     })
-                } else if (nextFixture !== fixtureCache) {
+                } else if (nextFixture !== fixtureCache && nextFixture.Status !== "PLAYED") {
                     const difference = filter(fixtureCache, nextFixture);
                     const messages = []
 
@@ -116,12 +123,13 @@ async function updateFixtureData(client, chatId, teamName, orgId, compId, season
                     }
                 }
 
-                writeToJSON(path.join(process.cwd(), "bot_cache", "fixture_cache.json"), nextFixture);
-
-                console.log("[INFO] Stored fixture cache of ID: ", nextFixture.Id)
+                if (fixtureCache !== nextFixture) {
+                    writeToJSON(path.join(process.cwd(), "bot_cache", "fixture_cache.json"), nextFixture);
+                    LogToFile(`Updated fixture cache of ID: ${nextFixture.Id}`)
+                }
             }
         })
         .catch((error) => {
-            console.error("Error fetching fixtures:", error);
+            LogToFile(`Could not fetch fixtures, error: ${error}`, "error")
         });
 }

@@ -3,8 +3,10 @@ import ora from "ora";
 import {getCompetitions, getFixturesForOrg, getNextFixtureForTeam, getOrganisation} from "./competition.js";
 import initWhatsappConnection, {sendLocationToChatById, sendMessageToChatById} from "./whatsapp.js";
 import startScheduler from "./scheduler.js";
+import LogToFile from "./logger.js";
 
 async function startFlow() {
+    LogToFile('----------', 'init')
     // Step 1: Fetch competitions with loading
     const competitionSpinner = ora("Fetching competitions...").start();
     const competitions = (await getCompetitions()).map(competition => ({
@@ -102,18 +104,6 @@ async function startFlow() {
                 choices: chatChoices,
             }
         ]);
-
-        const {onboardingMessage} = await inquirer.prompt([
-            {
-                type: "confirm",
-                name: "onboardingMessage",
-                message: "Do you want to send an onboarding message to the chat?",
-                default: true,
-            }]);
-
-        if (onboardingMessage) {
-            void sendMessageToChatById(client, chatId, `Hello! Your team "*${teamName}*" has been successfully registered. You will receive alerts here. To learn more use the command: "!help"`);
-        }
 
         startScheduler(client, chatId, teamName, organisationId, competitionId, 2025);
     }

@@ -3,6 +3,7 @@ import Location from "whatsapp-web.js/src/structures/Location.js";
 import qrcode from 'qrcode-terminal'
 import ora from "ora";
 import LocalAuth from "whatsapp-web.js/src/authStrategies/LocalAuth.js";
+import LogToFile from "./logger.js";
 
 export default async function initWhatsappConnection() {
     return new Promise((resolve, reject) => {
@@ -44,24 +45,20 @@ export default async function initWhatsappConnection() {
 }
 
 export async function sendMessageToChatById(client, id, message) {
-    const spinner = ora("Sending message...").start();
-
     const sentMessage = await client.sendMessage(id, message);
-    spinner.succeed("Message sent successfully!");
+    LogToFile(`Sent message to ${id}: ${message}`, 'message')
 
     return sentMessage
 }
 
 export async function sendLocationToChatById(client, id, lat, long, address, name) {
-    const spinner = ora("Sending location...").start();
-
     const location = new Location(lat, long, {
         address: address,
         name: name
     })
 
     const sentMessage = await client.sendMessage(id, location);
-    spinner.succeed("Location sent successfully!");
+    LogToFile(`Sent location to ${id}: ${address} (${lat}, ${long})`, 'message')
 
     return sentMessage
 }
