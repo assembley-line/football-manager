@@ -41,7 +41,7 @@ const filter = (prevObj, newObj) => {
 };
 
 async function updateFixtureData(client, chatId, teamName, orgId, compId, season) {
-    if (7 <= getNZDate().getHours() <= 19) {
+    if (7 >= getNZDate().getHours() >= 19) {
         LogToFile(`Prevented update during the night`)
         return
     }
